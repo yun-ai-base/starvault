@@ -171,6 +171,17 @@
   var ICON_X = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" ' +
     'd="M18.9 2H22l-6.9 7.9L22.6 22h-6.4l-4.5-6.1L6.3 22H3.2l7.2-8.2L2 2h6.5l4.2 5.7L18.9 2Zm-1.1 18h1.7L7.3 3.8H5.5L17.8 20Z"/></svg>';
 
+  var ICON_USERS = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" ' +
+    'stroke-linecap="round" stroke-linejoin="round"><path d="M16 19v-1.6a4 4 0 0 0-4-4H6.5a4 4 0 0 0-4 4V19"/>' +
+    '<circle cx="9.2" cy="7.2" r="3.2"/><path d="M17.4 11.3a3.2 3.2 0 0 0 0-6.4"/>' +
+    '<path d="M22 19v-1.6a4 4 0 0 0-3-3.87"/></svg>';
+
+  var ICON_BADGE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7">' +
+    '<circle cx="12" cy="12" r="9.2"/><circle cx="12" cy="12" r="3.5"/></svg>';
+
+  var ICON_SPARK = '<svg viewBox="0 0 24 24" fill="currentColor">' +
+    '<path d="M12 2.4l1.9 7.2 7.2 1.9-7.2 1.9-1.9 7.2-1.9-7.2L2.9 11.5l7.2-1.9z"/></svg>';
+
   /* 简介里的裸链接转成可点链接;「位置: …」那行前面补一个定位标记。
      传进来的必须是已经 esc() 过的文本。 */
   function bioHtml(text) {
@@ -329,16 +340,16 @@
     var total = items.length;
     var active = items.filter(function (i) { return !i.archived && !i.suspended; }).length;
     var verified = items.filter(function (i) { return i.verified && !i.archived && !i.suspended; }).length;
-    var vault = items.filter(function (i) { return i.suspended; }).length;
-    var sum = items.reduce(function (s, i) { return s + num(i.followers); }, 0);
+    var max = items.reduce(function (m, i) { return Math.max(m, num(i.followers)); }, 0);
     var data = [
-      { value: fmtNum(total), label: '扫描总数' + (vault ? ' · 在用 ' + active : '') },
-      { value: active ? Math.round(verified / active * 100) + '%' : '—', label: '蓝标认证 · ' + fmtNum(verified) + ' 位' },
-      { value: fmtFans(sum), label: '覆盖粉丝' }
+      { icon: ICON_USERS, value: fmtNum(total), label: '归档总数' },
+      { icon: ICON_BADGE, value: active ? Math.round(verified / active * 100) + '%' : '—', label: '蓝标认证' },
+      { icon: ICON_SPARK, value: fmtFans(max), label: '最高粉丝' }
     ];
     $('#stats').innerHTML = data.map(function (d) {
-      return '<div class="stat"><div class="stat__value">' + esc(d.value) +
-        '</div><div class="stat__label">' + esc(d.label) + '</div></div>';
+      return '<div class="stat"><span class="stat__ico">' + d.icon + '</span>' +
+        '<span class="stat__text"><span class="stat__value">' + esc(d.value) + '</span>' +
+        '<span class="stat__label">' + esc(d.label) + '</span></span></div>';
     }).join('');
   }
 
@@ -455,21 +466,25 @@
     var it = pickSpotlight();
     if (!it) {
       body.innerHTML = '<p class="muted">还没有条目,先去控制台添加几位创作者吧。</p>';
+      body.removeAttribute('data-open');
+      body.removeAttribute('role');
+      body.removeAttribute('tabindex');
       return;
     }
     spotlightId = it.id;
+    body.setAttribute('data-open', it.id);
+    body.setAttribute('role', 'button');
+    body.setAttribute('tabindex', '0');
     body.innerHTML =
-      avatarImg(it, 'spotlight__avatar') +
-      '<div style="min-width:0">' +
+      '<div class="spotlight__head">' + avatarImg(it, 'spotlight__avatar') +
+      (it.verified ? '<span class="spotlight__check">' + ICON_CHECK + '</span>' : '') +
+      '</div>' +
+      '<div class="spotlight__info">' +
       '<div class="spotlight__name">' + esc(it.name) +
-      (it.verified ? '<span class="badge" title="蓝标认证">✓</span>' : '') +
       '<span class="pill">' + esc(tierOf(it) || 'Creator') + '</span></div>' +
-      '<div class="spotlight__meta">@' + esc(it.handle) + ' · ' + esc(fmtFans(it.followers)) + ' 关注者</div>' +
-      '<p class="spotlight__bio">' + esc(it.bio || '暂无简介') + '</p>' +
-      '<div class="detail__actions" style="margin-top:10px">' +
-      '<button class="btn btn--sm" type="button" data-open="' + esc(it.id) + '">查看资料</button>' +
-      '<a class="btn btn--ghost btn--sm" href="' + esc(profileUrlOf(it)) + '" target="_blank" rel="noopener noreferrer">前往主页 ↗</a>' +
-      '</div></div>';
+      '<div class="spotlight__meta">@' + esc(it.handle) + ' · ' + esc(fmtFans(it.followers)) + ' 关注</div>' +
+      '<p class="spotlight__bio">' + bioHtml(it.bio || '暂无简介') + '</p>' +
+      '</div>';
   }
   var spotlightId = null;
 
@@ -788,10 +803,13 @@
       state.q = q.value;
       state.shown = PAGE_SIZE;
       $('#btn-clear-q').hidden = !q.value;
+      $('#search-wrap').classList.toggle('has-q', !!q.value);
       renderGrid();
     });
     $('#btn-clear-q').addEventListener('click', function () {
-      q.value = ''; state.q = ''; this.hidden = true; renderGrid(); q.focus();
+      q.value = ''; state.q = ''; this.hidden = true;
+      $('#search-wrap').classList.remove('has-q');
+      renderGrid(); q.focus();
     });
     $('#sort').addEventListener('change', function () {
       state.sort = this.value; state.shown = PAGE_SIZE; renderGrid();
