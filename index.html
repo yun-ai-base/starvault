@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>StarVault · 创作者收藏馆</title>
+<meta name="description" content="本地优先的创作者收藏与索引工具:自己录入、自己拥有、数据不出本机。">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>✦</text></svg>">
+<link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+
+<a class="skip-link" href="#main">跳到主内容</a>
+
+<header class="topbar">
+  <div class="topbar__inner">
+    <a class="brand" href="#/">
+      <span class="brand__mark" aria-hidden="true">✦</span>
+      <span class="brand__text">
+        <strong>StarVault</strong>
+        <small>创作者收藏馆</small>
+      </span>
+    </a>
+
+    <nav class="nav" aria-label="主导航">
+      <a class="nav__link" href="#/" data-nav="vault">收藏馆</a>
+      <a class="nav__link" href="#/admin" data-nav="admin">管理台</a>
+    </nav>
+
+    <div class="topbar__tools">
+      <button class="icon-btn" id="btn-theme" type="button" title="切换主题 (T)" aria-label="切换主题">◐</button>
+    </div>
+  </div>
+</header>
+
+<main id="main">
+
+  <!-- ============ 收藏馆视图 ============ -->
+  <section class="view" id="view-vault">
+
+    <div class="hero">
+      <div class="hero__copy">
+        <p class="eyebrow">LOCAL-FIRST CURATION</p>
+        <h1>你的创作者收藏馆</h1>
+        <p class="hero__sub">
+          自己录入、自己拥有。所有资料只存在这台设备的浏览器里,不上传任何服务器,也不抓取任何人的数据。
+        </p>
+      </div>
+
+      <div class="spotlight" id="spotlight" aria-live="polite">
+        <p class="spotlight__label">今日精选</p>
+        <div class="spotlight__body" id="spotlight-body">
+          <p class="muted">还没有条目,先去管理台添加几位创作者吧。</p>
+        </div>
+        <button class="btn btn--ghost" id="btn-reroll" type="button">换一位 (R)</button>
+      </div>
+    </div>
+
+    <div class="stats" id="stats" aria-label="统计概览"></div>
+
+    <div class="controls">
+      <div class="search">
+        <span class="search__icon" aria-hidden="true">⌕</span>
+        <input id="q" type="search" placeholder="搜索昵称 / 账号 / 简介 / 标签  (按 / 聚焦)" autocomplete="off" aria-label="搜索">
+        <button class="search__clear" id="btn-clear-q" type="button" title="清除" hidden>×</button>
+      </div>
+      <label class="select">
+        <span class="sr-only">排序方式</span>
+        <select id="sort">
+          <option value="followers-desc">粉丝数从高到低</option>
+          <option value="followers-asc">粉丝数从低到高</option>
+          <option value="name-asc">名称 (A → Z)</option>
+          <option value="added-desc">收录时间最近</option>
+          <option value="added-asc">收录时间最早</option>
+        </select>
+      </label>
+    </div>
+
+    <div class="chips" id="chips" role="group" aria-label="分类筛选"></div>
+
+    <div class="grid" id="grid"></div>
+
+    <div class="empty" id="empty" hidden>
+      <h3 id="empty-title">收藏馆还是空的</h3>
+      <p class="muted" id="empty-text">去管理台手动添加,或导入一份 JSON / CSV 数据。</p>
+      <a class="btn" href="#/admin">前往管理台</a>
+    </div>
+
+    <div class="more" id="more-wrap" hidden>
+      <button class="btn btn--ghost" id="btn-more" type="button">加载更多</button>
+    </div>
+  </section>
+
+  <!-- ============ 管理台视图 ============ -->
+  <section class="view" id="view-admin" hidden>
+    <div class="admin-head">
+      <div>
+        <p class="eyebrow">CONSOLE</p>
+        <h2>管理台</h2>
+        <p class="muted">数据保存在本机浏览器(localStorage)。建议定期导出备份。</p>
+      </div>
+      <div class="admin-head__actions">
+        <button class="btn" id="btn-add" type="button">+ 新增条目</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3 class="panel__title">导入 / 导出</h3>
+      <div class="panel__row">
+        <button class="btn btn--ghost" id="btn-export-json" type="button">导出 JSON</button>
+        <button class="btn btn--ghost" id="btn-export-csv" type="button">导出 CSV</button>
+        <label class="btn btn--ghost file-btn">
+          导入 JSON
+          <input type="file" id="file-json" accept=".json,application/json" hidden>
+        </label>
+        <label class="btn btn--ghost file-btn">
+          导入 CSV
+          <input type="file" id="file-csv" accept=".csv,text/csv" hidden>
+        </label>
+        <button class="btn btn--ghost" id="btn-seed" type="button">载入示例数据</button>
+        <button class="btn btn--danger" id="btn-wipe" type="button">清空全部</button>
+      </div>
+      <p class="hint" id="io-hint">导入按 <code>handle</code> 去重:已存在的会被更新,不会重复添加。</p>
+    </div>
+
+    <div class="panel">
+      <h3 class="panel__title">条目 <span class="pill" id="admin-count">0</span></h3>
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>昵称</th><th>账号</th><th>粉丝</th><th>认证</th><th>标签</th><th>状态</th><th></th>
+            </tr>
+          </thead>
+          <tbody id="admin-rows"></tbody>
+        </table>
+      </div>
+      <p class="empty-line" id="admin-empty" hidden>暂无条目。</p>
+    </div>
+  </section>
+</main>
+
+<footer class="footer">
+  <p>
+    StarVault · 本地优先的创作者收藏工具 · 数据存于本机浏览器,不抓取第三方数据、不托管任何媒体文件。
+  </p>
+</footer>
+
+<!-- 详情弹窗 -->
+<div class="modal" id="modal" hidden>
+  <div class="modal__backdrop" data-close></div>
+  <div class="modal__panel" role="dialog" aria-modal="true" aria-labelledby="modal-name">
+    <button class="modal__close icon-btn" id="btn-modal-close" type="button" aria-label="关闭">×</button>
+    <div id="modal-body"></div>
+  </div>
+</div>
+
+<!-- 编辑弹窗 -->
+<div class="modal" id="editor" hidden>
+  <div class="modal__backdrop" data-close></div>
+  <div class="modal__panel" role="dialog" aria-modal="true" aria-labelledby="editor-title">
+    <button class="modal__close icon-btn" id="btn-editor-close" type="button" aria-label="关闭">×</button>
+    <h3 id="editor-title">新增条目</h3>
+    <form id="editor-form" class="form">
+      <div class="form__grid">
+        <label>昵称 <span class="req">*</span>
+          <input name="name" required maxlength="80" placeholder="例:某某">
+        </label>
+        <label>账号 (handle) <span class="req">*</span>
+          <input name="handle" required maxlength="40" placeholder="例:example" pattern="[A-Za-z0-9_.\-]+">
+        </label>
+        <label>粉丝数
+          <input name="followers" type="number" min="0" step="1" placeholder="0">
+        </label>
+        <label>平台
+          <select name="platform">
+            <option value="x">X / Twitter</option>
+            <option value="bilibili">哔哩哔哩</option>
+            <option value="xiaohongshu">小红书</option>
+            <option value="youtube">YouTube</option>
+            <option value="other">其他</option>
+          </select>
+        </label>
+        <label class="form__full">头像图片地址
+          <input name="avatar" type="url" placeholder="https://…(可留空)">
+        </label>
+        <label class="form__full">主页链接
+          <input name="profileUrl" type="url" placeholder="https://…(留空则按平台自动生成)">
+        </label>
+        <label class="form__full">标签(用逗号分隔)
+          <input name="tags" placeholder="摄影, 旅行, 插画">
+        </label>
+        <label class="form__full">简介
+          <textarea name="bio" rows="3" maxlength="400" placeholder="一句话描述"></textarea>
+        </label>
+        <label class="form__full">私人备注
+          <textarea name="note" rows="2" maxlength="400" placeholder="只有你自己看得到"></textarea>
+        </label>
+        <label class="check"><input type="checkbox" name="verified"> 蓝标认证</label>
+        <label class="check"><input type="checkbox" name="archived"> 归档(移出主列表)</label>
+      </div>
+      <div class="form__actions">
+        <button class="btn" type="submit">保存</button>
+        <button class="btn btn--ghost" type="button" data-close>取消</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="toast" id="toast" hidden></div>
+
+<script src="assets/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,11 @@
+# OS / 编辑器
+Thumbs.db
+Desktop.ini
+.DS_Store
+.vscode/
+.idea/
+
+# 本地导出与临时文件
+starvault-*.json
+starvault-*.csv
+*.log
