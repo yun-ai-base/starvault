@@ -1,11 +1,27 @@
-# StarVault · 创作者收藏馆
+# StarVault · X 博主精选画廊
 
 **在线访问**:https://yun-ai-base.github.io/starvault/
 
-一个**本地优先**的创作者收藏与索引工具:自己录入、自己拥有、数据不出本机。
+一个**策展式**的 X (Twitter) 创作者画廊:内置一份去重备份快照,打开就能浏览、筛选、随机探索;
+本机的任何增删改只写进浏览器 `localStorage`,不会回传服务器。
 
-> 这是一个**原创实现**(自己的代码与设计),不会抓取任何第三方数据,也不托管任何媒体文件。
-> 站点内的资料全部由你自己手动录入或导入,仅保存在你浏览器的 `localStorage` 里。
+> 这是一个**原创实现**(自己的代码与设计),站点不抓取第三方数据、不托管任何媒体文件。
+> 页面里的头像与封面都是**外链引用**(见下文「图片加载」),仓库里不存放任何图片。
+
+---
+
+## 当前数据快照
+
+| 指标 | 数值 |
+|---|---|
+| 扫描总数 | **463** |
+| 在用(未失联) | **447** |
+| 蓝标认证 | **146**(31.5%) |
+| 覆盖粉丝合计 | **83,958,534** |
+| 赛博坟场(账号已失联) | **16** |
+| 快照版本 | `2026-09-11`(取备份记录里最新的归档日期) |
+
+来源:本地上游导出的一份 JSON 备份,经 `tools/build-data.py` 转换后内嵌为 `assets/data.js`。
 
 ---
 
@@ -13,16 +29,17 @@
 
 | 模块 | 说明 |
 |---|---|
-| 收藏画廊 | 卡片网格、头像、认证徽标、标签、粉丝数、收录时间 |
+| 精选画廊 | 封面 + 头像卡片网格,展示昵称、认证、`@handle`、关注者、简介、归档日期 |
+| 分类筛选 | 全部 / 热度排行 / 蓝标认证 / Top 头部(50万+) / 知名创作者(10万+) / 最新归档 / 赛博坟场 / 归档箱 |
 | 搜索 | 昵称 / 账号 / 简介 / 备注 / 标签 全文匹配(`/` 键聚焦) |
-| 分类筛选 | 全部、认证、头部 50万+、知名 10万+、最近收录、已打标签、归档箱 |
-| 排序 | 粉丝数高低、名称 A→Z、收录时间正倒序 |
-| 今日精选 | 随机推荐一位,`R` 键换一位 |
-| 详情弹窗 | 完整资料 + 私人备注 + 跳转主页 / 复制链接 |
-| 管理台 | 新增、编辑、删除、归档/恢复 |
+| 排序 | 粉丝数高低、热度(点击)高低、名称 A→Z、归档时间正倒序 |
+| 视图 | 网格 / 列表一键切换(选择会被记住) |
+| 今日精选 | Spotlight 卡片随机推荐一位,`R` 键或「换一位推荐」换人 |
+| 随机探索 | 顶栏骰子按钮,直接弹出随机一位的详情 |
+| 详情弹窗 | 封面、头像、关注者、三类点击与累计热度、简介、归档时间;支持 **深链分享**(`#/c/<id>`) |
+| 控制台 | 新增、编辑、删除、归档/恢复、重置为内置快照、清空全部 |
 | 导入导出 | JSON / CSV 双向;导入按 `handle` 去重(已存在则更新) |
 | 主题 | 深色 / 浅色切换(`T` 键),选择会被记住 |
-| 分页 | 每页 24 条,「加载更多」渐进展示 |
 
 **快捷键**:`/` 搜索 · `R` 换一位精选 · `T` 切主题 · `Esc` 关闭弹窗
 
@@ -44,56 +61,58 @@ python -m http.server 8080
 npx serve .
 ```
 
-首次使用建议进「管理台」→「载入示例数据」看效果,再「清空全部」开始录自己的。
+---
+
+## 更新数据
+
+```powershell
+# 把上游导出的备份 (JSON 数组) 转成站点内嵌数据
+python tools/build-data.py path\to\backup.json assets\data.js
+```
+
+脚本会做三件事:字段映射、按 `handle` 去重(粉丝数最高者胜)、按粉丝数倒序输出,
+并把最新的 `backed_up_at` 日期作为快照 `version`。
+
+页面启动时的合并策略:
+
+- **首次访问**(本机没有数据):直接铺上内置快照;
+- **快照版本变了**:把新快照按 `handle` 合并进本机数据(覆盖同账号条目,保留你自建的条目),
+  并在右下角提示「已同步内置数据快照 …」;
+- 控制台里的「重置为内置数据」可以随时手动重来一次。
+
+> ⚠️ 本机的增删改只存在当前浏览器。换设备、清缓存、换浏览器都会回到内置快照,请定期「导出 JSON」备份。
 
 ---
 
-## 数据格式
+## 图片加载
 
-存储位置:`localStorage["starvault.items.v1"]`(仅本机,不上传)。
+仓库里**不放图片**,头像和封面都是外链:
 
-单条记录字段:
-
-| 字段 | 类型 | 说明 |
+| 资源 | 来源 | 说明 |
 |---|---|---|
-| `name` | string | 昵称(必填) |
-| `handle` | string | 账号,不带 `@`(必填,导入时作为去重键) |
-| `followers` | number | 粉丝数 |
-| `verified` | boolean | 是否认证 |
-| `archived` | boolean | 是否归档(移出主列表) |
-| `platform` | enum | `x` / `bilibili` / `xiaohongshu` / `youtube` / `other` |
-| `tags` | string[] | 标签 |
-| `bio` | string | 简介 |
-| `note` | string | 私人备注(只有本机可见) |
-| `avatar` | string | 头像图片 URL,留空则自动生成首字母头像 |
-| `profileUrl` | string | 主页链接,留空则按平台自动拼 |
-| `addedAt` | ISO string | 收录时间 |
+| 封面 | `wsrv.nl` 图片代理 → 回退 `pbs.twimg.com` 直链 | 上游给的封面是 `pbs.twimg.com/profile_banners/...`。部分地区(如中国大陆)直连该域名不通,所以默认走 `wsrv.nl` 代理取一份缩放副本,代理失败自动退回直链,再失败就露出渐变底色 |
+| 头像 | `unavatar.io/twitter/<handle>` | 上游备份里的头像多为相对接口路径(`/api/media?key=avatars%2F...`),脱离原服务就没法用;这里按账号去公开聚合服务取一次,取不到(404)则回退成**首字母渐变头像** |
+| 少数自带绝对地址的头像 | 原地址直链 | 备份里少数条目本身就是完整 URL,直接使用 |
 
-**CSV 列顺序**:`name,handle,followers,verified,archived,platform,tags,bio,note,avatar,profileUrl,addedAt`
-(多个标签用 `|` 或逗号分隔;布尔值写 `true`/`false`)
-
-**JSON 导入**支持两种形态:裸数组 `[ {...} ]`,或 `{ "items": [ {...} ] }`。
-
-> ⚠️ 数据只存在当前浏览器。换设备、清缓存、换浏览器都会丢,请定期「导出 JSON」备份。
+如果你有自己可控的图床,把 `assets/app.js` 里的 `avatarOf()` / `proxied()` 换成你的地址即可。
 
 ---
 
-## 部署 / 私有化
+## 部署
 
-### 方案 A:私有仓库 + 本地打开(最简单)
-仓库设为 **private**,数据本来就在浏览器里,不需要公网托管。clone 下来双击 `index.html` 即可。
+站点是纯静态的,GitHub Pages 从 `main` 分支根目录直接发布(`build_type: legacy`):
 
-### 方案 B:GitHub Pages
-- 免费账号:**只能从公开仓库发布** Pages(站点公网可访问)。
-- 从**私有仓库**发布 Pages,需要 GitHub Pro / Team / Enterprise。
-- Pages 站点的「私有访问控制」只有 **GitHub Enterprise Cloud** 才支持。
-- 也就是说:**仓库可以私有,但 Pages 出来的站点做不到私有**(除非上企业版)。
+```powershell
+git add -A
+git commit -m "chore: 更新画廊数据与版式"
+git push origin main
+```
 
-### 方案 C:Cloudflare Pages + Access(真正私有,推荐)
-1. Cloudflare Pages 连接你的私有 GitHub 仓库(**支持私有仓库**);
-2. Build command 留空,Build output directory 填 `/`(纯静态,无构建);
-3. 在 Cloudflare Access 里加一条策略,只允许你的邮箱访问。
-   → 这样网址虽然公开,但**必须登录你的邮箱验证码才能看到内容**,达到"私密"效果。
+推送后 GitHub Pages 会自动重建,通常 30~60 秒生效。
+
+> Pages 站点是**公网可访问**的。若要私有访问,README 早前记录过的方案:改用
+> **Cloudflare Pages + Access**(支持私有仓库 + 邮箱验证码)。
+> 页面本身已设 `noindex, nofollow`,避免被搜索引擎收录。
 
 ---
 
@@ -101,10 +120,13 @@ npx serve .
 
 ```
 starvault/
-├─ index.html          # 单页外壳(收藏馆 + 管理台两个视图)
+├─ index.html            # 单页外壳(画廊 + 控制台两个视图)
 ├─ assets/
-│  ├─ styles.css       # 全部样式(含深/浅色主题变量)
-│  └─ app.js           # 数据层 + 渲染 + 管理台 + 导入导出
+│  ├─ styles.css         # 全部样式(含深/浅色主题变量)
+│  ├─ app.js             # 数据层 + 渲染 + 控制台 + 导入导出
+│  └─ data.js            # 内置数据快照(由 tools/build-data.py 生成,勿手工编辑)
+├─ tools/
+│  └─ build-data.py      # 上游备份 → assets/data.js
 └─ README.md
 ```
 
@@ -112,11 +134,42 @@ starvault/
 
 ---
 
+## 存储格式
+
+存储位置:`localStorage["starvault.items.v1"]`(仅本机,不上传),
+快照版本记在 `localStorage["starvault.seedVersion"]`。
+
+单条记录字段:
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `id` | string | 条目 ID(内置快照用上游的 Twitter 数字 ID) |
+| `name` | string | 昵称(必填) |
+| `handle` | string | 账号,不带 `@`(必填,导入时作为去重键) |
+| `followers` | number | 粉丝数 |
+| `verified` | boolean | 蓝标认证 |
+| `archived` | boolean | 归档(移出主列表) |
+| `suspended` | boolean | 赛博坟场(账号已失联) |
+| `heat` / `clicks` | number / object | 累计热度与卡片 / 时间线 / 轮盘三类点击 |
+| `platform` | enum | `x` / `bilibili` / `xiaohongshu` / `youtube` / `other` |
+| `tags` | string[] | 标签 |
+| `bio` | string | 简介 |
+| `note` | string | 私人备注(只有本机可见) |
+| `avatar` / `cover` | string | 头像 / 封面图片 URL,留空则自动获取或生成首字母头像 |
+| `profileUrl` | string | 主页链接,留空则按平台自动拼 |
+| `addedAt` | ISO string | 归档(备份)时间 |
+
+**CSV 列顺序**:`name,handle,followers,verified,archived,suspended,platform,tags,bio,note,avatar,cover,profileUrl,addedAt`
+
+**JSON 导入**支持两种形态:裸数组 `[ {...} ]`,或 `{ "items": [ {...} ] }`;
+也兼容上游备份的原始字段名(`screen_name` / `followers_count` / `description` / `avatar_url` / `backed_up_at` …)。
+
+---
+
 ## 设计边界(有意为之)
 
-- **不抓取**:没有爬虫、没有第三方 API 调用,所有数据来自你手动录入或导入。
-- **不托管媒体**:只保存文本字段与头像 URL,不存储任何图片/视频文件。
-- **不联网**:前端零网络请求(`localStorage` 之外没有任何出站请求)。
+- **不抓取**:站点自身不跑爬虫、不调第三方 API,数据来自本地上游备份的导入。
+- **不托管媒体**:只保存文本字段与图片 URL,仓库里没有任何图片/视频文件。
 - `noindex` + `robots` 已设置,避免被搜索引擎收录。
 
 请自行确保你录入的内容与使用方式符合当地法律及各平台的服务条款。
