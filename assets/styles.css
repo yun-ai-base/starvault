@@ -37,6 +37,12 @@ html[data-theme="light"] {
 
 * { box-sizing: border-box; }
 
+/* [hidden] 安全网:
+   浏览器默认样式里的 `[hidden] { display: none }` 会被作者样式覆盖 ——
+   例如 .modal { display: grid } 会让 hidden 属性完全失效(弹窗关不掉)。
+   这里强制 hidden 始终生效,避免这类层叠陷阱。 */
+[hidden] { display: none !important; }
+
 html, body { height: 100%; }
 
 body {
