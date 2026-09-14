@@ -84,15 +84,21 @@
     return '';
   }
 
-  /* 数据快照里最新的一批归档时间,用来算「最新归档」 */
-  var latestAdded = (function () {
-    var m = 0;
-    DATA.items.forEach(function (r) { var t = new Date(r.addedAt || 0).getTime(); if (t > m) m = t; });
-    return m || Date.now();
-  })();
+  /* 「最新归档」= 归档时间最新的 60 位(快照里最老与最新只差一个月,
+     按天数切会把全部条目都算进去,所以直接按条数切) */
+  var RECENT_N = 60;
+  var recentCut = 0;
+
+  function computeRecent() {
+    var ts = items.filter(function (i) { return !i.archived && !i.suspended; })
+      .map(function (i) { return new Date(i.addedAt || 0).getTime(); })
+      .filter(function (t) { return t > 0; })
+      .sort(function (a, b) { return b - a; });
+    recentCut = ts.length ? ts[Math.min(RECENT_N, ts.length) - 1] : 0;
+  }
+
   function isRecent(it) {
-    var t = new Date(it.addedAt || 0).getTime();
-    return t > 0 && latestAdded - t < 30 * 864e5;
+    return recentCut > 0 && new Date(it.addedAt || 0).getTime() >= recentCut;
   }
 
   function letterAvatar(ch) {
@@ -155,6 +161,36 @@
     if (it.profileUrl) return it.profileUrl;
     var p = PLATFORMS[it.platform] || PLATFORMS.other;
     return it.handle ? p.url(it.handle) : '';
+  }
+
+  /* ---------------- 卡片里的小图标 ---------------- */
+  var ICON_CHECK = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="11" fill="#1d9bf0"/>' +
+    '<path d="M6.8 12.4l3.3 3.3 7.1-7.4" fill="none" stroke="#fff" stroke-width="2.6" ' +
+    'stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+  var ICON_X = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" ' +
+    'd="M18.9 2H22l-6.9 7.9L22.6 22h-6.4l-4.5-6.1L6.3 22H3.2l7.2-8.2L2 2h6.5l4.2 5.7L18.9 2Zm-1.1 18h1.7L7.3 3.8H5.5L17.8 20Z"/></svg>';
+
+  /* 简介里的裸链接转成可点链接;「位置: …」那行前面补一个定位标记。
+     传进来的必须是已经 esc() 过的文本。 */
+  function bioHtml(text) {
+    var safe = esc(text || '');
+    var linked = safe.replace(/https?:\/\/[^\s<]+/g, function (all) {
+      // 尾巴上常粘着 emoji / 中文标点,别把它们算进 URL
+      var url = all.replace(/[^\x21-\x7e]+$/, '').replace(/[.,;:!?)\]]+$/, '');
+      if (!url) return all;
+      var tail = all.slice(url.length);
+      return '<a class="bio-link" href="' + url.replace(/&amp;/g, '&') + '" target="_blank" ' +
+        'rel="noopener noreferrer" data-stop="1">' + url + '</a>' + tail;
+    });
+    return linked.replace(/(^|\n)([ \t]*)(位置\s*[:：])/g, function (m, br, pad, key) {
+      return br + pad + '<span class="bio-loc"><span class="bio-pin" aria-hidden="true">◉</span>' + key + '</span>';
+    });
+  }
+
+  function tierPill(it) {
+    var t = tierOf(it);
+    return t ? '<i class="card__sep" aria-hidden="true"></i><span class="tier">' + esc(t) + '</span>' : '';
   }
 
   function toast(msg) {
@@ -260,6 +296,7 @@
 
   /* ---------------- 状态与筛选 ---------------- */
   var state = { q: '', cat: 'all', sort: 'followers-desc', shown: PAGE_SIZE, view: 'grid' };
+  var lastCols = 0;
 
   function catOf(id) {
     return CATEGORIES.filter(function (c) { return c.id === id; })[0] || CATEGORIES[0];
@@ -291,12 +328,12 @@
   function renderStats() {
     var total = items.length;
     var active = items.filter(function (i) { return !i.archived && !i.suspended; }).length;
-    var verified = items.filter(function (i) { return i.verified; }).length;
+    var verified = items.filter(function (i) { return i.verified && !i.archived && !i.suspended; }).length;
     var vault = items.filter(function (i) { return i.suspended; }).length;
     var sum = items.reduce(function (s, i) { return s + num(i.followers); }, 0);
     var data = [
       { value: fmtNum(total), label: '扫描总数' + (vault ? ' · 在用 ' + active : '') },
-      { value: total ? Math.round(verified / total * 100) + '%' : '—', label: '蓝标认证 · ' + fmtNum(verified) + ' 位' },
+      { value: active ? Math.round(verified / active * 100) + '%' : '—', label: '蓝标认证 · ' + fmtNum(verified) + ' 位' },
       { value: fmtFans(sum), label: '覆盖粉丝' }
     ];
     $('#stats').innerHTML = data.map(function (d) {
@@ -315,31 +352,71 @@
   }
 
   function cardHtml(it) {
-    var tier = tierOf(it);
-    var html = '<button class="card" type="button" data-open="' + esc(it.id) + '">' +
+    var url = profileUrlOf(it);
+    return '<article class="card' + (it.suspended ? ' card--vault' : '') + '">' +
+      '<div class="card__main" role="button" tabindex="0" data-open="' + esc(it.id) + '" ' +
+      'aria-label="查看 ' + esc(it.name) + ' 的资料">' +
       '<div class="card__cover">' + coverImg(it) +
-      (tier ? '<span class="card__tier">' + esc(tier) + '</span>' : '') +
       (it.suspended ? '<span class="flag-vault">赛博坟场</span>' : '') +
       '</div>' +
-      avatarImg(it, 'card__avatar') +
+      '<div class="card__avatar-wrap">' + avatarImg(it, 'card__avatar') +
+      (it.verified ? '<span class="card__check" title="蓝标认证">' + ICON_CHECK + '</span>' : '') +
+      '</div>' +
       '<div class="card__body">' +
-      '<div class="card__name">' + esc(it.name) +
-      (it.verified ? '<span class="badge" title="蓝标认证">✓</span>' : '') + '</div>' +
-      '<div class="card__handle">@' + esc(it.handle) + ' · <b>' + esc(fmtFans(it.followers)) + '</b> 关注者</div>' +
-      '<p class="card__bio">' + esc(it.bio || '暂无简介') + '</p>' +
-      '<div class="card__meta">' +
-      '<span>' + esc((PLATFORMS[it.platform] || {}).label || '') + '</span>' +
-      '<span title="归档时间">' + esc(fmtDate(it.addedAt)) + '</span>' +
-      '</div></div></button>';
-    return html;
+      '<div class="card__name"><span class="card__name-text">' + esc(it.name) + '</span>' + tierPill(it) + '</div>' +
+      '<div class="card__handle"><b>@' + esc(it.handle) + '</b>' +
+      (it.verified ? '<span class="card__check-inline" title="蓝标认证">' + ICON_CHECK + '</span>' : '') +
+      '<span class="card__dot">·</span><span><b>' + esc(fmtFans(it.followers)) + '</b> 关注者</span></div>' +
+      '<p class="card__bio">' + bioHtml(it.bio || '暂无简介') + '</p>' +
+      '</div>' +
+      '</div>' +
+      '<div class="card__footer">' +
+      '<button class="card__act" type="button" data-open="' + esc(it.id) + '">' +
+      '<span class="card__act-ico" aria-hidden="true">🕐</span>时光档案</button>' +
+      (url ? '<a class="card__act card__act--go" href="' + esc(url) + '" target="_blank" ' +
+        'rel="noopener noreferrer" data-stop="1">' + ICON_X + '访问 X<span aria-hidden="true">↗</span></a>' : '') +
+      '</div>' +
+      '</article>';
+  }
+
+  /* 卡片按内容自然高度排布,再用「最矮一列优先」的方式打包,
+     这样排序顺序仍然是横向 1-2-3,但每列不会留出大片空白。 */
+  function colCount() {
+    var w = window.innerWidth;
+    if (state.view === 'list') return 1;
+    if (w >= 1180) return 3;
+    if (w >= 780) return 2;
+    return 1;
   }
 
   function renderGrid() {
     var list = filtered();
     var slice = list.slice(0, state.shown);
     var grid = $('#grid');
+    var cols = colCount();
+    lastCols = cols;
     grid.className = 'grid' + (state.view === 'list' ? ' is-list' : '');
-    grid.innerHTML = slice.map(cardHtml).join('');
+    grid.innerHTML = '';
+
+    var colEls = [], colH = [], i;
+    for (i = 0; i < cols; i++) {
+      var c = document.createElement('div');
+      c.className = 'ms-col';
+      grid.appendChild(c);
+      colEls.push(c);
+      colH.push(0);
+    }
+
+    var tpl = document.createElement('div');
+    slice.forEach(function (it) {
+      tpl.innerHTML = cardHtml(it);
+      var card = tpl.firstElementChild;
+      if (!card) return;
+      var k = 0;
+      for (i = 1; i < cols; i++) { if (colH[i] < colH[k]) k = i; }
+      colEls[k].appendChild(card);
+      colH[k] += card.getBoundingClientRect().height + 18;
+    });
 
     $('#count-line').innerHTML = '共呈现 <strong>' + list.length + '</strong> 位博主归档' +
       (state.q ? '(关键词「' + esc(state.q) + '」)' : '');
@@ -658,6 +735,7 @@
 
   function renderAll() {
     state.shown = PAGE_SIZE;
+    computeRecent();
     renderStats();
     renderChips();
     renderGrid();
@@ -676,6 +754,15 @@
 
   function bind() {
     window.addEventListener('hashchange', route);
+
+    // 宽度跨过断点时按新的列数重排
+    var rt = null;
+    window.addEventListener('resize', function () {
+      clearTimeout(rt);
+      rt = setTimeout(function () {
+        if (colCount() !== lastCols) renderGrid();
+      }, 180);
+    });
 
     // 主题
     var savedTheme = localStorage.getItem(THEME_KEY);
@@ -733,6 +820,8 @@
 
     // 卡片 / 行内操作(事件委托)
     document.addEventListener('click', function (e) {
+      // 简介里的链接、卡片底部的「访问 X」:让浏览器自己处理,别被卡片点击接管
+      if (e.target.closest('[data-stop]')) return;
       var t = e.target.closest('[data-open],[data-edit],[data-del],[data-toggle],[data-copy],[data-close]');
       if (!t) return;
 
@@ -821,6 +910,11 @@
     // 键盘快捷键
     document.addEventListener('keydown', function (e) {
       var typing = /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName);
+      // 卡片主体是 div[role=button],自己补上 Enter / 空格
+      if ((e.key === 'Enter' || e.key === ' ') && !typing) {
+        var card = e.target.closest && e.target.closest('[data-open]');
+        if (card) { e.preventDefault(); openDetail(card.dataset.open); return; }
+      }
       if (e.key === 'Escape') { closeDetail(); hide('#editor'); return; }
       if (typing) return;
       if (e.key === '/') { e.preventDefault(); $('#q').focus(); return; }
