@@ -131,7 +131,7 @@
   /* 封面走图片代理:部分网络(例如中国大陆)直连 pbs.twimg.com 不通,
      先用 wsrv.nl 取一份缩放后的副本,代理失败再退回直链。 */
   function proxied(url, w) {
-    return 'https://wsrv.nl/?url=' + encodeURIComponent(url) + '&w=' + (w || 600) + '&output=jpg&we';
+    return 'https://wsrv.nl/?url=' + encodeURIComponent(url) + '&w=' + (w || 600) + '&output=jpg';
   }
 
   function coverImg(it) {
@@ -804,7 +804,7 @@
     });
     $('#btn-wipe').addEventListener('click', function () {
       if (!items.length) { toast('已经是空库'); return; }
-      if (confirm('确定清空全部 ' + items.length + ' 条数据?刷新后内置快照会被重新载入。')) {
+      if (confirm('确定清空全部 ' + items.length + ' 条数据?\n之后可以用「重置为内置数据」把内置快照装回来。')) {
         items = []; save();
         localStorage.setItem(SEED_KEY, DATA_VERSION);
         renderAll(); toast('已清空');
