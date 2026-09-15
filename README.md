@@ -40,11 +40,47 @@
 | 今日精选 | Spotlight 卡片随机推荐一位,`R` 键或「换一位推荐」换人 |
 | 随机探索 | 顶栏骰子按钮,直接弹出随机一位的详情 |
 | 详情弹窗 | 封面、头像、关注者、三类点击与累计热度、简介、归档时间;支持 **深链分享**(`#/c/<id>`) |
-| 控制台 | 新增、编辑、删除、归档/恢复、重置为内置快照、清空全部 |
-| 导入导出 | JSON / CSV 双向;导入按 `handle` 去重(已存在则更新) |
+| 控制台(仅本地版) | 新增、编辑、删除、归档/恢复、重置为内置快照、清空全部 |
+| 导入导出(仅本地版) | JSON / CSV 双向;导入按 `handle` 去重(已存在则更新) |
 | 主题 | 深色 / 浅色切换(`T` 键),选择会被记住 |
 
 **快捷键**:`/` 搜索 · `R` 换一位精选 · `T` 切主题 · `Esc` 关闭弹窗
+
+---
+
+## 本地版 / 公开版
+
+**公开站是只读画廊,没有任何控制台。** 本地 `index.html` 才是带控制台的完整版。
+
+```powershell
+# 本地:直接打开就有控制台(能新增/编辑/删除/归档/导入导出)
+start index.html
+
+# 公开版:剥掉控制台区块后输出
+python tools/build-public.py index.html dist\index.html
+```
+
+带标记 `<!-- admin:start -->` … `<!-- admin:end -->` 的一共有四处:顶栏「控制台」入口、
+空态里的入口按钮、`#view-admin` 整个视图、`#editor` 编辑弹窗。发布脚本
+(`_deploy/publish.ps1`) 上传 `index.html` 之前会先跑一遍 `tools/build-public.py`,
+所以线上不会残留任何控制台痕迹。
+
+运行时也不需要开关文件:`assets/app.js` 直接看 `#view-admin` 在不在 DOM 里
+(`var ADMIN = !!document.getElementById('view-admin')`),不在就自动进入只读模式 ——
+隐藏控制台入口、忽略 `#/admin`、详情弹窗里也不显示「编辑」。
+
+### 为什么不用「前端口令锁」
+
+- **锁不住**:纯静态的 GitHub Pages 没有服务端,口令校验逻辑就在公开的 JS 里,
+  改个变量或用 devtools 就能绕过,属于自我安慰。
+- **也没什么可锁的**:控制台改的是**访客自己浏览器**的 `localStorage["starvault.items.v1"]`,
+  只影响他自己看到的那一份;线上内容 = 仓库里的 `assets/data.js`,只有 push 才会变。
+  而且这个文件本身就是公开可下载的。
+- 真要「只有我能进」,得换有服务端的方案(Cloudflare Access / Netlify Identity /
+  自建函数做 GitHub OAuth),纯 Pages 做不到。
+
+> ⚠️ 注意:控制台里的增删改**不会**同步到线上。要改线上数据,得改完导出、
+> 用 `tools/build-data.py` 重新生成 `data.js` 再发布。
 
 ---
 
@@ -123,13 +159,14 @@ git push origin main
 
 ```
 starvault/
-├─ index.html            # 单页外壳(画廊 + 控制台两个视图)
+├─ index.html            # 本地版外壳(画廊 + 控制台两个视图)
 ├─ assets/
 │  ├─ styles.css         # 全部样式(含深/浅色主题变量)
 │  ├─ app.js             # 数据层 + 渲染 + 控制台 + 导入导出
 │  └─ data.js            # 内置数据快照(由 tools/build-data.py 生成,勿手工编辑)
 ├─ tools/
-│  └─ build-data.py      # 上游备份 → assets/data.js
+│  ├─ build-data.py      # 上游备份 → assets/data.js
+│  └─ build-public.py    # 本地版 index.html → 公开版(剥掉控制台区块)
 └─ README.md
 ```
 
@@ -171,6 +208,7 @@ starvault/
 
 ## 设计边界(有意为之)
 
+- **公开站只读**:没有控制台、没有编辑/删除入口,访客只能浏览、搜索、筛选、排序。
 - **不抓取**:站点自身不跑爬虫、不调第三方 API,数据来自本地上游备份的导入。
 - **不托管媒体**:只保存文本字段与图片 URL,仓库里没有任何图片/视频文件。
 - `noindex` + `robots` 已设置,避免被搜索引擎收录。

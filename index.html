@@ -42,10 +42,6 @@
       <button class="icon-btn icon-btn--round" id="btn-theme" type="button" title="切换主题 (T)" aria-label="切换主题">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.2A8.4 8.4 0 0 1 9.8 4a8.5 8.5 0 1 0 10.2 10.2z"/></svg>
       </button>
-      <a class="btn btn--ghost btn--pill" href="#/admin" data-nav="admin" title="控制台">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-2.87 1.2V21a2 2 0 1 1-4 0v-.07A1.7 1.7 0 0 0 7.16 19.7l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.53 15H4.5a2 2 0 1 1 0-4h.07A1.7 1.7 0 0 0 6.3 8.16l-.06-.06A2 2 0 1 1 9.07 5.3l.06.06A1.7 1.7 0 0 0 11 5.7h.07A1.7 1.7 0 0 0 12.9 4.5V4.5a2 2 0 1 1 4 0v.07a1.7 1.7 0 0 0 2.87 1.2l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 22.5 11v.07a2 2 0 1 1 0 4z"/></svg>
-        <span class="btn__label">控制台</span>
-      </a>
     </div>
   </div>
 </header>
@@ -68,7 +64,7 @@
           <span class="spotlight__star" aria-hidden="true">★</span> 今日精选 <em>Spotlight</em>
         </p>
         <div class="spotlight__body" id="spotlight-body">
-          <p class="muted">还没有条目,先去控制台添加几位创作者吧。</p>
+          <p class="muted">还没有可展示的内容,刷新页面试试。</p>
         </div>
         <button class="btn btn--ghost btn--pill" id="btn-reroll" type="button">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.4 5.7"/><path d="M20 5v6h-6"/></svg>
@@ -104,8 +100,7 @@
 
     <div class="empty" id="empty" hidden>
       <h3 id="empty-title">画廊还是空的</h3>
-      <p class="muted" id="empty-text">去控制台手动添加,或导入一份 JSON / CSV 数据。</p>
-      <a class="btn" href="#/admin">前往控制台</a>
+      <p class="muted" id="empty-text">换个关键词,或点「全部」重置筛选。</p>
     </div>
 
     <div class="more" id="more-wrap" hidden>
@@ -113,60 +108,6 @@
     </div>
   </section>
 
-  <!-- ============ 控制台视图 ============ -->
-  <section class="view" id="view-admin" hidden>
-    <div class="admin-head">
-      <div>
-        <p class="eyebrow">CONSOLE</p>
-        <h2>控制台</h2>
-        <p class="muted">默认数据来自站点内置的备份快照;你的增删改只保存在本机浏览器(localStorage)。</p>
-      </div>
-      <div class="admin-head__actions">
-        <button class="btn" id="btn-add" type="button">+ 新增条目</button>
-      </div>
-    </div>
-
-    <div class="panel">
-      <h3 class="panel__title">数据</h3>
-      <div class="panel__row">
-        <button class="btn btn--ghost" id="btn-export-json" type="button">导出 JSON</button>
-        <button class="btn btn--ghost" id="btn-export-csv" type="button">导出 CSV</button>
-        <label class="btn btn--ghost file-btn">
-          导入 JSON
-          <input type="file" id="file-json" accept=".json,application/json" hidden>
-        </label>
-        <label class="btn btn--ghost file-btn">
-          导入 CSV
-          <input type="file" id="file-csv" accept=".csv,text/csv" hidden>
-        </label>
-        <button class="btn btn--ghost" id="btn-reseed" type="button">重置为内置数据</button>
-        <button class="btn btn--danger" id="btn-wipe" type="button">清空全部</button>
-      </div>
-      <p class="hint" id="io-hint">
-        导入按 <code>handle</code> 去重:已存在的会被更新,不会重复添加。
-        数据快照版本 <code id="data-version">—</code>,共 <span id="data-count">0</span> 条内置记录。
-      </p>
-    </div>
-
-    <div class="panel">
-      <h3 class="panel__title">条目 <span class="pill" id="admin-count">0</span></h3>
-      <div class="search search--panel">
-        <span class="search__icon" aria-hidden="true">⌕</span>
-        <input id="admin-q" type="search" placeholder="在条目里筛选…" autocomplete="off" aria-label="筛选条目">
-      </div>
-      <div class="table-wrap">
-        <table class="table">
-          <thead>
-            <tr>
-              <th>昵称</th><th>账号</th><th>粉丝</th><th>认证</th><th>状态</th><th></th>
-            </tr>
-          </thead>
-          <tbody id="admin-rows"></tbody>
-        </table>
-      </div>
-      <p class="empty-line" id="admin-empty" hidden>暂无条目。</p>
-    </div>
-  </section>
 </main>
 
 <footer class="footer">
@@ -185,61 +126,6 @@
   </div>
 </div>
 
-<!-- 编辑弹窗 -->
-<div class="modal" id="editor" hidden>
-  <div class="modal__backdrop" data-close></div>
-  <div class="modal__panel" role="dialog" aria-modal="true" aria-labelledby="editor-title">
-    <button class="modal__close icon-btn" id="btn-editor-close" type="button" aria-label="关闭">×</button>
-    <h3 id="editor-title">新增条目</h3>
-    <form id="editor-form" class="form">
-      <div class="form__grid">
-        <label>昵称 <span class="req">*</span>
-          <input name="name" required maxlength="80" placeholder="例:某某">
-        </label>
-        <label>账号 (handle) <span class="req">*</span>
-          <input name="handle" required maxlength="40" placeholder="例:example" pattern="[A-Za-z0-9_.\-]+">
-        </label>
-        <label>粉丝数
-          <input name="followers" type="number" min="0" step="1" placeholder="0">
-        </label>
-        <label>平台
-          <select name="platform">
-            <option value="x">X / Twitter</option>
-            <option value="bilibili">哔哩哔哩</option>
-            <option value="xiaohongshu">小红书</option>
-            <option value="youtube">YouTube</option>
-            <option value="other">其他</option>
-          </select>
-        </label>
-        <label class="form__full">头像图片地址
-          <input name="avatar" type="url" placeholder="https://…(留空则按账号自动获取 / 生成首字母头像)">
-        </label>
-        <label class="form__full">封面图地址
-          <input name="cover" type="url" placeholder="https://…(可留空)">
-        </label>
-        <label class="form__full">主页链接
-          <input name="profileUrl" type="url" placeholder="https://…(留空则按平台自动生成)">
-        </label>
-        <label class="form__full">标签(用逗号分隔)
-          <input name="tags" placeholder="摄影, 旅行, 插画">
-        </label>
-        <label class="form__full">简介
-          <textarea name="bio" rows="3" maxlength="400" placeholder="一句话描述"></textarea>
-        </label>
-        <label class="form__full">私人备注
-          <textarea name="note" rows="2" maxlength="400" placeholder="只有你自己看得到"></textarea>
-        </label>
-        <label class="check"><input type="checkbox" name="verified"> 蓝标认证</label>
-        <label class="check"><input type="checkbox" name="archived"> 归档(移出主列表)</label>
-        <label class="check"><input type="checkbox" name="suspended"> 赛博坟场(账号已不可用)</label>
-      </div>
-      <div class="form__actions">
-        <button class="btn" type="submit">保存</button>
-        <button class="btn btn--ghost" type="button" data-close>取消</button>
-      </div>
-    </form>
-  </div>
-</div>
 
 <div class="toast" id="toast" hidden></div>
 

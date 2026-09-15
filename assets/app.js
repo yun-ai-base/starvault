@@ -12,6 +12,10 @@
   var VIEW_KEY = 'starvault.view';
   var PAGE_SIZE = 24;
 
+  /* 控制台只存在于「本地版」:发布版由 tools/build-public.py 剥掉 #view-admin 与编辑弹窗,
+     这里直接看 DOM 在不在,不需要额外的开关文件。公开站因此是纯只读画廊。 */
+  var ADMIN = !!document.getElementById('view-admin');
+
   var DATA = (window.STARVAULT_DATA && window.STARVAULT_DATA.items) ? window.STARVAULT_DATA : { version: '', items: [] };
   var DATA_VERSION = DATA.version || '';
 
@@ -436,8 +440,10 @@
     if (!list.length) {
       empty.hidden = false;
       if (!items.length) {
-        $('#empty-title').textContent = '画廊还是空的';
-        $('#empty-text').textContent = '去控制台手动添加,或导入一份 JSON / CSV 数据。';
+        $('#empty-title').textContent = '没有可显示的内容';
+        $('#empty-text').textContent = ADMIN
+          ? '去控制台手动添加,或导入一份 JSON / CSV 数据。'
+          : '内置数据快照没能载入,刷新页面试试。';
       } else {
         $('#empty-title').textContent = '没有匹配的条目';
         $('#empty-text').textContent = '换个关键词,或点「全部」重置筛选。';
@@ -520,15 +526,25 @@
       ' · 同步于 ' + esc(fmtDate(it.syncedAt || it.addedAt)) + '</p></div>' +
       '<div class="detail__actions">' +
       (url ? '<a class="btn" href="' + esc(url) + '" target="_blank" rel="noopener noreferrer">前往主页 ↗</a>' : '') +
-      '<button class="btn btn--ghost" type="button" data-edit="' + esc(it.id) + '">编辑</button>' +
+      (ADMIN ? '<button class="btn btn--ghost" type="button" data-edit="' + esc(it.id) + '">编辑</button>' : '') +
       '<button class="btn btn--ghost" type="button" data-copy="' + esc(url || it.handle) + '">复制主页链接</button>' +
       '<button class="btn btn--ghost" type="button" data-copy="' + esc(shareUrl(it)) + '">复制画廊链接</button>' +
       '</div>';
     show('#modal');
   }
 
-  function show(sel) { $(sel).hidden = false; document.body.style.overflow = 'hidden'; }
-  function hide(sel) { $(sel).hidden = true; document.body.style.overflow = ''; }
+  function show(sel) {
+    var el = $(sel);
+    if (!el) return;
+    el.hidden = false;
+    document.body.style.overflow = 'hidden';
+  }
+  function hide(sel) {
+    var el = $(sel);
+    if (!el) return;
+    el.hidden = true;
+    document.body.style.overflow = '';
+  }
 
   function shareUrl(it) {
     return location.origin + location.pathname + '#/c/' + encodeURIComponent(it.id);
@@ -719,9 +735,13 @@
 
   /* ---------------- 路由与渲染 ---------------- */
   function route() {
-    var isAdmin = location.hash.replace(/^#\/?/, '').indexOf('admin') === 0;
+    var isAdmin = ADMIN && location.hash.replace(/^#\/?/, '').indexOf('admin') === 0;
+    // 公开版没有控制台:#/admin 直接当画廊处理,顺手把 hash 抹掉
+    if (!ADMIN && /^#\/?admin/.test(location.hash)) {
+      history.replaceState(null, '', location.pathname + location.search);
+    }
     $('#view-vault').hidden = isAdmin;
-    $('#view-admin').hidden = !isAdmin;
+    if (ADMIN) $('#view-admin').hidden = !isAdmin;
     $$('[data-nav]').forEach(function (a) {
       a.classList.toggle('is-active', isAdmin ? a.dataset.nav === 'admin' : a.dataset.nav === 'vault');
     });
@@ -755,7 +775,7 @@
     renderChips();
     renderGrid();
     renderSpotlight();
-    if (!$('#view-admin').hidden) renderAdmin();
+    if (ADMIN && !$('#view-admin').hidden) renderAdmin();
   }
 
   /* ---------------- 事件绑定 ---------------- */
@@ -833,6 +853,8 @@
       openDetail(it.id);
     });
 
+    // ---- 以下是控制台专属绑定:公开版没有 #view-admin,整块跳过 ----
+    if (ADMIN) {
     // 控制台筛选
     $('#admin-q').addEventListener('input', function () { adminQ = this.value; renderAdmin(); });
 
@@ -844,10 +866,12 @@
       if (!t) return;
 
       if (t.hasAttribute('data-close')) {
-        if (!$('#editor').hidden) hide('#editor'); else closeDetail();
+        if (ADMIN && $('#editor') && !$('#editor').hidden) hide('#editor'); else closeDetail();
         return;
       }
       if (t.dataset.open) { openDetail(t.dataset.open); return; }
+      // 以下都是控制台动作,公开版一律忽略
+      if (!ADMIN) return;
       if (t.dataset.edit) { openEditor(t.dataset.edit); return; }
       if (t.dataset.copy) {
         var txt = t.dataset.copy;
@@ -872,7 +896,6 @@
     // 编辑器
     $('#btn-add').addEventListener('click', function () { openEditor(null); });
     $('#editor-form').addEventListener('submit', submitEditor);
-    $('#btn-modal-close').addEventListener('click', closeDetail);
     $('#btn-editor-close').addEventListener('click', function () { hide('#editor'); });
 
     // 导入导出
@@ -917,6 +940,10 @@
         renderAll(); toast('已清空');
       }
     });
+    } // end if (ADMIN)
+
+    // 详情弹窗的关闭按钮:公开版也有
+    $('#btn-modal-close').addEventListener('click', closeDetail);
 
     // 空白处关闭
     $$('.modal__backdrop').forEach(function (b) {
